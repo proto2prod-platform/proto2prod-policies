@@ -11,8 +11,40 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
-      - name: Create dummy SBOM
+      - name: Setup OPA
+        uses: open-policy-agent/setup-opa@v2
+        with:
+          opa-version: latest
+
+      - name: Create dummy license input
         run: |
-          echo '{}' > dummy_sbom.json
-      - name: Evaluate license policy
-        run: opa eval -d license_policy.rego -i dummy_sbom.json 'data.policies.allow'
+          echo '{"license": "MIT"}' > dummy_license_input.json
+          echo '{"license": "GPL"}' > dummy_bad_license_input.json
+
+      - name: Create dummy privacy input
+        run: |
+          echo '{"category": "data_privacy", "compliant": true}' > dummy_privacy_input.json
+          echo '{"category": "other", "compliant": false}' > dummy_bad_privacy_input.json
+
+      - name: Create dummy infra input
+        run: |
+          echo '{"resource": {"tags": {"cost_center": "proto2prod"}}}' > dummy_infra_input.json
+          echo '{"resource": {"tags": {"cost_center": "other"}}}' > dummy_bad_infra_input.json
+
+      - name: Evaluate license policy (allow)
+        run: opa eval -d license_policy.rego -i dummy_license_input.json "data.policies.allow == true"
+
+      - name: Evaluate license policy (deny)
+        run: opa eval -d license_policy.rego -i dummy_bad_license_input.json "data.policies.allow == false"
+
+      - name: Evaluate privacy policy (allow)
+        run: opa eval -d privacy_policy.rego -i dummy_privacy_input.json "data.policies.allow == true"
+
+      - name: Evaluate privacy policy (deny)
+        run: opa eval -d privacy_policy.rego -i dummy_bad_privacy_input.json "data.policies.allow == false"
+
+      - name: Evaluate infra policy (allow)
+        run: opa eval -d infra_policy.rego -i dummy_infra_input.json "data.policies.allow == true"
+
+      - name: Evaluate infra policy (deny)
+        run: opa eval -d infra_policy.rego -i dummy_bad_infra_input.json "data.policies.allow == false"
